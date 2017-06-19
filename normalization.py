@@ -10,9 +10,18 @@ import re
 import nltk
 import string
 from nltk.stem import WordNetLemmatizer
+from HTMLParser import HTMLParser
+import unicodedata
 
 stopword_list = nltk.corpus.stopwords.words('english')
+stopword_list = stopword_list + ['mr', 'mrs', 'come', 'go', 'get',
+                                 'tell', 'listen', 'one', 'two', 'three',
+                                 'four', 'five', 'six', 'seven', 'eight',
+                                 'nine', 'zero', 'join', 'find', 'make',
+                                 'say', 'ask', 'tell', 'see', 'try', 'back',
+                                 'also']
 wnl = WordNetLemmatizer()
+html_parser = HTMLParser()
 
 def tokenize_text(text):
     tokens = nltk.word_tokenize(text) 
@@ -75,7 +84,7 @@ def lemmatize_text(text):
 def remove_special_characters(text):
     tokens = tokenize_text(text)
     pattern = re.compile('[{}]'.format(re.escape(string.punctuation)))
-    filtered_tokens = filter(None, [pattern.sub('', token) for token in tokens])
+    filtered_tokens = filter(None, [pattern.sub(' ', token) for token in tokens])
     filtered_text = ' '.join(filtered_tokens)
     return filtered_text
     
@@ -86,19 +95,81 @@ def remove_stopwords(text):
     filtered_text = ' '.join(filtered_tokens)    
     return filtered_text
 
-    
+def keep_text_characters(text):
+    filtered_tokens = []
+    tokens = tokenize_text(text)
+    for token in tokens:
+        if re.search('[a-zA-Z]', token):
+            filtered_tokens.append(token)
+    filtered_text = ' '.join(filtered_tokens)
+    return filtered_text
 
-def normalize_corpus(corpus, tokenize=False):
+def unescape_html(parser, text):
+    
+    return parser.unescape(text)
+    
+    
+from HTMLParser import HTMLParser
+
+class MLStripper(HTMLParser):
+    def __init__(self):
+        self.reset()
+        self.fed = []
+    def handle_data(self, d):
+        self.fed.append(d)
+    def get_data(self):
+        return ' '.join(self.fed)
+        
+def strip_html(text):
+    html_stripper = MLStripper()
+    html_stripper.feed(text)
+    return html_stripper.get_data()
+    
+def normalize_accented_characters(text):
+    text = unicodedata.normalize('NFKD', 
+                                 text.decode('utf-8')
+                                 ).encode('ascii', 'ignore')
+    return text
+
+def normalize_corpus(corpus, lemmatize=True, 
+                     only_text_chars=False,
+                     tokenize=False):
     
     normalized_corpus = []    
-    for text in corpus:
+    for index, text in enumerate(corpus):
+        text = normalize_accented_characters(text)
+        text = html_parser.unescape(text)
+        text = strip_html(text)
         text = expand_contractions(text, CONTRACTION_MAP)
-        text = lemmatize_text(text)
+        if lemmatize:
+            text = lemmatize_text(text)
+        else:
+            text = text.lower()
         text = remove_special_characters(text)
         text = remove_stopwords(text)
-        normalized_corpus.append(text)
+        if only_text_chars:
+            text = keep_text_characters(text)
+        
         if tokenize:
             text = tokenize_text(text)
             normalized_corpus.append(text)
+        else:
+            normalized_corpus.append(text)
             
     return normalized_corpus
+
+
+def parse_document(document):
+    document = re.sub('\n', ' ', document)
+    if isinstance(document, str):
+        document = document
+    elif isinstance(document, unicode):
+        return unicodedata.normalize('NFKD', document).encode('ascii', 'ignore')
+    else:
+        raise ValueError('Document is not string or unicode!')
+    document = document.strip()
+    sentences = nltk.sent_tokenize(document)
+    sentences = [sentence.strip() for sentence in sentences]
+    return sentences
+    
+    
