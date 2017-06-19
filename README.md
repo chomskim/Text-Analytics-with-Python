@@ -1,3 +1,2 @@
 # Text Analytics with Python
-"Text Analytics with Python" Book, Source in IPython
-IPython using Python2.7
+"Text Analytics with Python" Book, Source in IPython using Python2.7
