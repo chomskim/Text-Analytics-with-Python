@@ -127,7 +127,7 @@ def strip_html(text):
     
 def normalize_accented_characters(text):
     text = unicodedata.normalize('NFKD', 
-                                 text.decode('utf-8')
+                                 text.encode('utf-8').decode('utf-8')
                                  ).encode('ascii', 'ignore')
     return text
 
